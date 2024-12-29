@@ -1,0 +1,6 @@
+venv/*
+.env
+certs/production/*
+certs/sandbox/*
+__pycache__
+app/generated/*

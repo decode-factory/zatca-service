@@ -1,0 +1,399 @@
+{
+	"Invoice": {
+		"ProfileID": {
+			"__prefix": "cbc",
+			"__text": "reporting:1.0"
+		},
+		"ID": {
+			"__prefix": "cbc",
+			"__text": "INV/0001/2025"
+		},
+		"UUID": {
+			"__prefix": "cbc",
+			"__text": "16e78469-64af-406d-9cfd-895e724198f0"
+		},
+		"IssueDate": {
+			"__prefix": "cbc",
+			"__text": "2022-03-13"
+		},
+		"IssueTime": {
+			"__prefix": "cbc",
+			"__text": "14:40:40"
+		},
+		"InvoiceTypeCode": {
+			"_name": "0100000",
+			"__prefix": "cbc",
+			"__text": "388"
+		},
+		"DocumentCurrencyCode": {
+			"__prefix": "cbc",
+			"__text": "SAR"
+		},
+		"TaxCurrencyCode": {
+			"__prefix": "cbc",
+			"__text": "SAR"
+		},
+		"AdditionalDocumentReference": [
+			{
+				"ID": {
+					"__prefix": "cbc",
+					"__text": "ICV"
+				},
+				"UUID": {
+					"__prefix": "cbc",
+					"__text": "1"
+				},
+				"__prefix": "cac"
+			},
+			{
+				"ID": {
+					"__prefix": "cbc",
+					"__text": "PIH"
+				},
+				"Attachment": {
+					"EmbeddedDocumentBinaryObject": {
+						"_mimeCode": "text/plain",
+						"__prefix": "cbc",
+						"__text": "NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI0NjcyOWQ3M2EyN2ZiNTdlOQ=="
+					},
+					"__prefix": "cac"
+				},
+				"__prefix": "cac"
+			},
+			{
+				"ID": {
+					"__prefix": "cbc",
+					"__text": "QR"
+				},
+				"Attachment": {
+					"EmbeddedDocumentBinaryObject": {
+						"_mimeCode": "text/plain",
+						"__prefix": "cbc",
+						"__text": "ARdBaG1lZCBNb2hhbWVkIEFMIEFobWFkeQIPMzAwMDc1NTg4NzAwMDAzAxQyMDIyLTAzLTEzVDE0OjQwOjQwWgQHMTEwOC45MAUFMTQ0LjkGLCtiQTFtdWNWSTY3SDRXQ2JOL2U5SjJxVXBIVHQzVHdNZHhsa09XVGVvdjg9B2BNRVlDSVFDWWg1ZTNpcklxV2w1WXRhQ25LaXVqTUlUbW9rWFlPUE1wSURDSW9XVzc5d0loQU1YbWMrTUZIR3RhZUJzZU91RUdUbHdENmcwOWdOUVBSUHVZODlzNjVPV1MIWDBWMBAGByqGSM49AgEGBSuBBAAKA0IABNMAr2WtNWSj2uSrplhxz0cNFk/hv1LjMDgqbthcn6ydNWEuTNTQeyZJf1SfyMOFFM4cMpp+3wL+65Rj3fi+4w0JSDBGAiEAlcAzHKujzvjHJrAV1M/79RnYRqe66kmtgMUykr/N/CACIQDgTQwbfftw0pYo6FX8c63Q4edvFgt+7JhHaBlla0qRtQ=="
+					},
+					"__prefix": "cac"
+				},
+				"__prefix": "cac"
+			}
+		],
+		"AccountingSupplierParty": {
+			"Party": {
+				"PartyIdentification": {
+					"ID": {
+						"_schemeID": "CRN",
+						"__prefix": "cbc",
+						"__text": "454634645645654"
+					},
+					"__prefix": "cac"
+				},
+				"PostalAddress": {
+					"StreetName": {
+						"__prefix": "cbc",
+						"__text": "test"
+					},
+					"BuildingNumber": {
+						"__prefix": "cbc",
+						"__text": "3454"
+					},
+					"PlotIdentification": {
+						"__prefix": "cbc",
+						"__text": "1234"
+					},
+					"CitySubdivisionName": {
+						"__prefix": "cbc",
+						"__text": "fgff"
+					},
+					"CityName": {
+						"__prefix": "cbc",
+						"__text": "Riyadh"
+					},
+					"PostalZone": {
+						"__prefix": "cbc",
+						"__text": "12345"
+					},
+					"CountrySubentity": {
+						"__prefix": "cbc",
+						"__text": "test"
+					},
+					"Country": {
+						"IdentificationCode": {
+							"__prefix": "cbc",
+							"__text": "SA"
+						},
+						"__prefix": "cac"
+					},
+					"__prefix": "cac"
+				},
+				"PartyTaxScheme": {
+					"CompanyID": {
+						"__prefix": "cbc",
+						"__text": "300075588700003"
+					},
+					"TaxScheme": {
+						"ID": {
+							"__prefix": "cbc",
+							"__text": "VAT"
+						},
+						"__prefix": "cac"
+					},
+					"__prefix": "cac"
+				},
+				"PartyLegalEntity": {
+					"RegistrationName": {
+						"__prefix": "cbc",
+						"__text": "Ahmed Mohamed AL Ahmady"
+					},
+					"__prefix": "cac"
+				},
+				"__prefix": "cac"
+			},
+			"__prefix": "cac"
+		},
+		"AccountingCustomerParty": {
+			"Party": {
+				"PartyIdentification": {
+					"ID": {
+						"_schemeID": "NAT",
+						"__prefix": "cbc",
+						"__text": "2345"
+					},
+					"__prefix": "cac"
+				},
+				"PostalAddress": {
+					"StreetName": {
+						"__prefix": "cbc",
+						"__text": "baaoun"
+					},
+					"AdditionalStreetName": {
+						"__prefix": "cbc",
+						"__text": "sdsd"
+					},
+					"BuildingNumber": {
+						"__prefix": "cbc",
+						"__text": "3353"
+					},
+					"PlotIdentification": {
+						"__prefix": "cbc",
+						"__text": "3434"
+					},
+					"CitySubdivisionName": {
+						"__prefix": "cbc",
+						"__text": "fgff"
+					},
+					"CityName": {
+						"__prefix": "cbc",
+						"__text": "Dhurma"
+					},
+					"PostalZone": {
+						"__prefix": "cbc",
+						"__text": "34534"
+					},
+					"CountrySubentity": {
+						"__prefix": "cbc",
+						"__text": "ulhk"
+					},
+					"Country": {
+						"IdentificationCode": {
+							"__prefix": "cbc",
+							"__text": "SA"
+						},
+						"__prefix": "cac"
+					},
+					"__prefix": "cac"
+				},
+				"PartyTaxScheme": {
+					"TaxScheme": {
+						"ID": {
+							"__prefix": "cbc",
+							"__text": "VAT"
+						},
+						"__prefix": "cac"
+					},
+					"__prefix": "cac"
+				},
+				"PartyLegalEntity": {
+					"RegistrationName": {
+						"__prefix": "cbc",
+						"__text": "sdsa"
+					},
+					"__prefix": "cac"
+				},
+				"__prefix": "cac"
+			},
+			"__prefix": "cac"
+		},
+		"Delivery": {
+			"ActualDeliveryDate": {
+				"__prefix": "cbc",
+				"__text": "2022-03-13"
+			},
+			"LatestDeliveryDate": {
+				"__prefix": "cbc",
+				"__text": "2022-03-15"
+			},
+			"__prefix": "cac"
+		},
+		"PaymentMeans": {
+			"PaymentMeansCode": {
+				"__prefix": "cbc",
+				"__text": "10"
+			},
+			"__prefix": "cac"
+		},
+		"TaxTotal": [
+			{
+				"TaxAmount": {
+					"_currencyID": "SAR",
+					"__prefix": "cbc",
+					"__text": "15.00"
+				},
+				"TaxSubtotal": {
+					"TaxableAmount": {
+						"_currencyID": "SAR",
+						"__prefix": "cbc",
+						"__text": "100.00"
+					},
+					"TaxAmount": {
+						"_currencyID": "SAR",
+						"__prefix": "cbc",
+						"__text": "15.00"
+					},
+					"TaxCategory": {
+						"ID": {
+							"__prefix": "cbc",
+							"__text": "S"
+						},
+						"Percent": {
+							"__prefix": "cbc",
+							"__text": "15.00"
+						},
+						"TaxScheme": {
+							"ID": {
+								"__prefix": "cbc",
+								"__text": "VAT"
+							},
+							"__prefix": "cac"
+						},
+						"__prefix": "cac"
+					},
+					"__prefix": "cac"
+				},
+				"__prefix": "cac"
+			},
+			{
+				"TaxAmount": {
+					"_currencyID": "SAR",
+					"__prefix": "cbc",
+					"__text": "15.00"
+				},
+				"__prefix": "cac"
+			}
+		],
+		"LegalMonetaryTotal": {
+			"LineExtensionAmount": {
+				"_currencyID": "SAR",
+				"__prefix": "cbc",
+				"__text": "100.00"
+			},
+			"TaxExclusiveAmount": {
+				"_currencyID": "SAR",
+				"__prefix": "cbc",
+				"__text": "100.00"
+			},
+			"TaxInclusiveAmount": {
+				"_currencyID": "SAR",
+				"__prefix": "cbc",
+				"__text": "115.00"
+			},
+			"PayableAmount": {
+				"_currencyID": "SAR",
+				"__prefix": "cbc",
+				"__text": "115.00"
+			},
+			"__prefix": "cac"
+		},
+		"InvoiceLine": {
+			"ID": {
+				"__prefix": "cbc",
+				"__text": "1"
+			},
+			"InvoicedQuantity": {
+				"_unitCode": "PCE",
+				"__prefix": "cbc",
+				"__text": "1.00"
+			},
+			"LineExtensionAmount": {
+				"_currencyID": "SAR",
+				"__prefix": "cbc",
+				"__text": "100.00"
+			},
+			"AllowanceCharge": {
+				"ChargeIndicator": {
+					"__prefix": "cbc",
+					"__text": "false"
+				},
+				"AllowanceChargeReason": {
+					"__prefix": "cbc",
+					"__text": "discount"
+				},
+				"Amount": {
+					"_currencyID": "SAR",
+					"__prefix": "cbc",
+					"__text": "0.00"
+				},
+				"__prefix": "cac"
+			},
+			"TaxTotal": {
+				"TaxAmount": {
+					"_currencyID": "SAR",
+					"__prefix": "cbc",
+					"__text": "15.00"
+				},
+				"RoundingAmount": {
+					"_currencyID": "SAR",
+					"__prefix": "cbc",
+					"__text": "115.00"
+				},
+				"__prefix": "cac"
+			},
+			"Item": {
+				"Name": {
+					"__prefix": "cbc",
+					"__text": "nokia"
+				},
+				"ClassifiedTaxCategory": {
+					"ID": {
+						"__prefix": "cbc",
+						"__text": "S"
+					},
+					"Percent": {
+						"__prefix": "cbc",
+						"__text": "15.00"
+					},
+					"TaxScheme": {
+						"ID": {
+							"__prefix": "cbc",
+							"__text": "VAT"
+						},
+						"__prefix": "cac"
+					},
+					"__prefix": "cac"
+				},
+				"__prefix": "cac"
+			},
+			"Price": {
+				"PriceAmount": {
+					"_currencyID": "SAR",
+					"__prefix": "cbc",
+					"__text": "100.00"
+				},
+				"__prefix": "cac"
+			},
+			"__prefix": "cac"
+		},
+		"_xmlns": "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2",
+		"_xmlns:cac": "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+		"_xmlns:cbc": "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+		"_xmlns:ext": "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+	}
+}
