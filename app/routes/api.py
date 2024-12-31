@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app, send_file
-from app.services import ZATCAService
+from app.services import ZATCAService, XMLService
 import traceback
 import os
 from functools import wraps
@@ -87,8 +87,20 @@ def process_invoice():
             }), 400
         
         try:
-            # Generate QR code
-            qr_image, qr_string = zatca_service.generate_qr_code(processed_data)
+            # Get certificate info for signing
+            cert_info = zatca_service.prepare_certificate_info(processed_data)
+            if not cert_info:
+                return jsonify({
+                    'status': 'error',
+                    'error_type': 'certificate',
+                    'message': "Failed to prepare certificate information"
+                }), 400
+                
+            # Update XML service in ZATCA service to use certificate info
+            zatca_service.xml_service = XMLService()
+            
+            # Generate QR code with signed XML
+            qr_image, qr_string = zatca_service.generate_qr_code(processed_data, cert_info)
         except Exception as e:
             return jsonify({
                 'status': 'error',
@@ -99,7 +111,7 @@ def process_invoice():
         try:
             # Submit to ZATCA
             invoice_type = 'B2B' if processed_data.get('customerType') == 'business' else 'B2C'
-            zatca_response = zatca_service.submit_to_zatca(processed_data, invoice_type)
+            zatca_response = zatca_service.submit_to_zatca(processed_data, invoice_type, cert_info)
             
             # Add QR code to response
             zatca_response['qr_code'] = qr_string

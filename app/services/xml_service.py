@@ -12,17 +12,209 @@ logger = logging.getLogger(__name__)
 class XMLService:
 
     def __init__(self):
+        """Initialize XMLService with proper namespace handling"""
         # Define namespaces
         self.namespaces = {
-            '': "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2",
+            None: "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2",
             'cac': "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
             'cbc': "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-            'ext': "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+            'ext': "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2",
+            'sig': "urn:oasis:names:specification:ubl:schema:xsd:CommonSignatureComponents-2",
+            'sac': "urn:oasis:names:specification:ubl:schema:xsd:SignatureAggregateComponents-2",
+            'sbc': "urn:oasis:names:specification:ubl:schema:xsd:SignatureBasicComponents-2",
+            'ds': "http://www.w3.org/2000/09/xmldsig#",
+            'xades': "http://uri.etsi.org/01903/v1.3.2#"
         }
+
+    def create_element(self, parent, tag, text=None, **attrs):
+        """Create XML element with proper namespace handling"""
+        if ':' in tag:
+            prefix, local_name = tag.split(':')
+            namespace = self.namespaces[prefix]
+            elem = ET.SubElement(parent, f"{{{namespace}}}{local_name}")
+        else:
+            namespace = self.namespaces[None]
+            elem = ET.SubElement(parent, f"{{{namespace}}}{tag}")
+            
+        if text is not None:
+            elem.text = str(text)
+            
+        for key, value in attrs.items():
+            if value is not None:
+                elem.set(key, str(value))
+                
+        return elem
+    
+    def generate_ubl_xml(self, invoice_data, cert_info=None):
+        """Generate UBL 2.1 compliant XML"""
+        try:
+            # Create the XML structure manually to control namespace declarations
+            xml_lines = []
+            xml_lines.append('<?xml version="1.0" encoding="UTF-8"?>')
+            xml_lines.append('<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"')
+            xml_lines.append('  xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"')
+            xml_lines.append('  xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"')
+            xml_lines.append('  xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"')
+            xml_lines.append('  xmlns:sig="urn:oasis:names:specification:ubl:schema:xsd:CommonSignatureComponents-2"')
+            xml_lines.append('  xmlns:sac="urn:oasis:names:specification:ubl:schema:xsd:SignatureAggregateComponents-2"')
+            xml_lines.append('  xmlns:sbc="urn:oasis:names:specification:ubl:schema:xsd:SignatureBasicComponents-2"')
+            xml_lines.append('  xmlns:ds="http://www.w3.org/2000/09/xmldsig#"')
+            xml_lines.append('  xmlns:xades="http://uri.etsi.org/01903/v1.3.2#">')
+
+            # Create root element from the manually created header
+            root_string = '\n'.join(xml_lines)
+            parser = ET.XMLParser()
+            root = ET.fromstring(root_string + '</Invoice>', parser=parser)
+            
+            # Add signature extension first
+            self.add_signature_extension(root, cert_info)
+            
+            # Add main elements
+            self.create_element(root, 'cbc:ProfileID', 
+                            invoice_data.get('profileID', 'reporting:1.0'))
+            self.create_element(root, 'cbc:ID', invoice_data['invoiceNumber'])
+            self.create_element(root, 'cbc:UUID', 
+                            invoice_data.get('uuid', str(uuid.uuid4())))
+            self.create_element(root, 'cbc:IssueDate', invoice_data['issueDate'])
+            self.create_element(root, 'cbc:IssueTime', 
+                            invoice_data.get('issueTime', '00:00:00'))
+            self.create_element(root, 'cbc:InvoiceTypeCode', 
+                            invoice_data['invoiceTypeCode']['value'],
+                            name=invoice_data['invoiceTypeCode']['name'])
+            self.create_element(root, 'cbc:DocumentCurrencyCode', 'SAR')
+            self.create_element(root, 'cbc:TaxCurrencyCode', 'SAR')
+
+            # Add other elements
+            self._add_document_references(root, invoice_data)
+            self._add_supplier_party(root, invoice_data['supplier'])
+            self._add_customer_party(root, invoice_data['customer'])
+            
+            if 'delivery' in invoice_data:
+                self._add_delivery(root, invoice_data['delivery'])
+            
+            if 'paymentMeans' in invoice_data:
+                self._add_payment_means(root, invoice_data['paymentMeans'])
+            
+            self._add_tax_totals(root, invoice_data)
+            self._add_monetary_total(root, invoice_data['totals'])
+            self._add_invoice_lines(root, invoice_data['items'])
+
+            # Convert to string
+            xml_content = ET.tostring(root, encoding='UTF-8', xml_declaration=False)
+            final_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'.encode('UTF-8') + xml_content
+            
+            return final_xml
+            
+        except Exception as e:
+            logger.error(f"Error generating XML: {str(e)}")
+            raise
+
+    def add_signature_extension(self, root, cert_info=None):
+        """
+        Add UBL extensions with dynamic signature structure
+        cert_info: Dictionary containing certificate information from ZATCAService
+        """
+        extensions = self.create_element(root, 'ext:UBLExtensions')
+        extension = self.create_element(extensions, 'ext:UBLExtension')
+        self.create_element(extension, 'ext:ExtensionURI', 
+                        'urn:oasis:names:specification:ubl:dsig:enveloped:xades')
+        content = self.create_element(extension, 'ext:ExtensionContent')
         
-        # Register namespaces
-        for prefix, uri in self.namespaces.items():
-            ET.register_namespace(prefix, uri)
+        # Add UBLDocumentSignatures
+        sigs = self.create_element(content, 'sig:UBLDocumentSignatures')
+        sig_info = self.create_element(sigs, 'sac:SignatureInformation')
+        self.create_element(sig_info, 'cbc:ID', 'urn:oasis:names:specification:ubl:signature:1')
+        self.create_element(sig_info, 'sbc:ReferencedSignatureID', 
+                        'urn:oasis:names:specification:ubl:signature:Invoice')
+        
+        # Add Signature
+        signature = self.create_element(sig_info, 'ds:Signature')
+        signature.set('Id', 'signature')
+        
+        # Add SignedInfo
+        signed_info = self.create_element(signature, 'ds:SignedInfo')
+        self.create_element(signed_info, 'ds:CanonicalizationMethod', 
+                        Algorithm="http://www.w3.org/2006/12/xml-c14n11")
+        self.create_element(signed_info, 'ds:SignatureMethod', 
+                        Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256")
+        
+        # Add Reference
+        reference = self.create_element(signed_info, 'ds:Reference', 
+                                    Id="invoiceSignedData", URI="")
+        transforms = self.create_element(reference, 'ds:Transforms')
+        
+        # Add transforms
+        transform1 = self.create_element(transforms, 'ds:Transform', 
+                                    Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116")
+        self.create_element(transform1, 'ds:XPath', 'not(//ancestor-or-self::ext:UBLExtensions)')
+        
+        transform2 = self.create_element(transforms, 'ds:Transform', 
+                                    Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116")
+        self.create_element(transform2, 'ds:XPath', 'not(//ancestor-or-self::cac:Signature)')
+        
+        transform3 = self.create_element(transforms, 'ds:Transform', 
+                                    Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116")
+        self.create_element(transform3, 'ds:XPath', 
+                        'not(//ancestor-or-self::cac:AdditionalDocumentReference[cbc:ID=\'QR\'])')
+        
+        self.create_element(transforms, 'ds:Transform', 
+                        Algorithm="http://www.w3.org/2006/12/xml-c14n11")
+        
+        self.create_element(reference, 'ds:DigestMethod', 
+                        Algorithm="http://www.w3.org/2001/04/xmlenc#sha256")
+        # DigestValue will be added by ZATCA service
+        if cert_info and cert_info.get('digest_value'):
+            self.create_element(reference, 'ds:DigestValue', cert_info['digest_value'])
+        else:
+            self.create_element(reference, 'ds:DigestValue')
+        
+        # Add SignatureValue placeholder
+        if cert_info and cert_info.get('signature_value'):
+            self.create_element(signature, 'ds:SignatureValue', cert_info['signature_value'])
+        else:
+            self.create_element(signature, 'ds:SignatureValue')
+        
+        # Add KeyInfo
+        key_info = self.create_element(signature, 'ds:KeyInfo')
+        x509_data = self.create_element(key_info, 'ds:X509Data')
+        if cert_info and cert_info.get('certificate'):
+            self.create_element(x509_data, 'ds:X509Certificate', cert_info['certificate'])
+        else:
+            self.create_element(x509_data, 'ds:X509Certificate')
+        
+        # Add Object with XAdES properties
+        ds_object = self.create_element(signature, 'ds:Object')
+        qualifying_props = self.create_element(ds_object, 'xades:QualifyingProperties')
+        qualifying_props.set('Target', 'signature')
+        
+        signed_props = self.create_element(qualifying_props, 'xades:SignedProperties')
+        signed_props.set('Id', 'xadesSignedProperties')
+        
+        sig_signed_props = self.create_element(signed_props, 'xades:SignedSignatureProperties')
+        current_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        self.create_element(sig_signed_props, 'xades:SigningTime', current_time)
+        
+        # Add SigningCertificate
+        signing_cert = self.create_element(sig_signed_props, 'xades:SigningCertificate')
+        cert = self.create_element(signing_cert, 'xades:Cert')
+        cert_digest = self.create_element(cert, 'xades:CertDigest')
+        self.create_element(cert_digest, 'ds:DigestMethod', 
+                        Algorithm="http://www.w3.org/2001/04/xmlenc#sha256")
+        
+        if cert_info and cert_info.get('cert_digest'):
+            self.create_element(cert_digest, 'ds:DigestValue', cert_info['cert_digest'])
+        else:
+            self.create_element(cert_digest, 'ds:DigestValue')
+        
+        issuer_serial = self.create_element(cert, 'xades:IssuerSerial')
+        if cert_info:
+            if cert_info.get('issuer_name'):
+                self.create_element(issuer_serial, 'ds:X509IssuerName', cert_info['issuer_name'])
+            if cert_info.get('serial_number'):
+                self.create_element(issuer_serial, 'ds:X509SerialNumber', cert_info['serial_number'])
+        else:
+            self.create_element(issuer_serial, 'ds:X509IssuerName')
+            self.create_element(issuer_serial, 'ds:X509SerialNumber')
 
     def _extract_text(self, obj, key):
         """Extract text value from nested JSON structure"""
@@ -197,108 +389,6 @@ class XMLService:
         }
         
         return converted_data
-
-    def create_element(self, parent, tag, text=None, **attrs):
-        """Create XML element with proper namespace handling"""
-        if ':' in tag:
-            prefix, local_name = tag.split(':')
-            namespace = self.namespaces[prefix]
-            elem = ET.SubElement(parent, f"{{{namespace}}}{local_name}")
-        else:
-            namespace = self.namespaces['']
-            elem = ET.SubElement(parent, f"{{{namespace}}}{tag}")
-            
-        if text is not None:
-            elem.text = str(text)
-            
-        for key, value in attrs.items():
-            if value is not None:
-                elem.set(key, str(value))
-                
-        return elem
-    
-    def add_signature_extension(self, root: ET.Element) -> None:
-        """Add UBL extensions with proper signature structure"""
-        extensions = self.create_element(root, 'ext:UBLExtensions')
-        extension = self.create_element(extensions, 'ext:UBLExtension')
-        self.create_element(extension, 'ext:ExtensionURI', 
-                          'urn:oasis:names:specification:ubl:dsig:enveloped:xades')
-        content = self.create_element(extension, 'ext:ExtensionContent')
-        
-        # Add UBLDocumentSignatures structure
-        sigs = self.create_element(content, 'sig:UBLDocumentSignatures')
-        sig_info = self.create_element(sigs, 'sac:SignatureInformation')
-        self.create_element(sig_info, 'cbc:ID', 'urn:oasis:names:specification:ubl:signature:1')
-        self.create_element(sig_info, 'sbc:ReferencedSignatureID', 
-                          'urn:oasis:names:specification:ubl:signature:Invoice')
-        
-        # Add detailed signature structure
-        signature = self.create_element(sig_info, 'ds:Signature', Id="signature")
-        
-        # SignedInfo
-        signed_info = self.create_element(signature, 'ds:SignedInfo')
-        self.create_element(signed_info, 'ds:CanonicalizationMethod', 
-                          Algorithm="http://www.w3.org/2006/12/xml-c14n11")
-        self.create_element(signed_info, 'ds:SignatureMethod', 
-                          Algorithm="http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256")
-        
-        # Reference
-        reference = self.create_element(signed_info, 'ds:Reference', Id="invoiceSignedData", URI="")
-        transforms = self.create_element(reference, 'ds:Transforms')
-        
-        # Add required transforms
-        transform1 = self.create_element(transforms, 'ds:Transform', 
-                                      Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116")
-        self.create_element(transform1, 'ds:XPath', 'not(//ancestor-or-self::ext:UBLExtensions)')
-        
-        transform2 = self.create_element(transforms, 'ds:Transform', 
-                                      Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116")
-        self.create_element(transform2, 'ds:XPath', 'not(//ancestor-or-self::cac:Signature)')
-        
-        transform3 = self.create_element(transforms, 'ds:Transform', 
-                                      Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116")
-        self.create_element(transform3, 'ds:XPath', 
-                          'not(//ancestor-or-self::cac:AdditionalDocumentReference[cbc:ID=\'QR\'])')
-        
-        self.create_element(transforms, 'ds:Transform', 
-                          Algorithm="http://www.w3.org/2006/12/xml-c14n11")
-        
-        self.create_element(reference, 'ds:DigestMethod', 
-                          Algorithm="http://www.w3.org/2001/04/xmlenc#sha256")
-        self.create_element(reference, 'ds:DigestValue', 
-                          '1IaleVZWDasvze2l8qjCg3hSZ1sjChTD+2XBYYfY/Dw=')
-        
-        # Add SignatureValue
-        self.create_element(signature, 'ds:SignatureValue', 
-                          'MEQCIGYxvrHutzL7ratlWFOOYCoqveEp3LcxaBPeJavGm22BAiAzazZieycwyXEg30cMA+/4Mg/RhhKXv5rdFeqe+rybFw==')
-        
-        # Add KeyInfo with X509Data
-        key_info = self.create_element(signature, 'ds:KeyInfo')
-        x509_data = self.create_element(key_info, 'ds:X509Data')
-        self.create_element(x509_data, 'ds:X509Certificate', 
-                          'MIICDDCCAbGgAwIBAgIGAY0wptEzMAoGCCqGSM49BAMCMBUxEzARBgNVBAMMCmVJbnZvaWNpbmcwHhcNMjQwMTIyMTAxMDUwWhcNMjkwMTIxMjEwMDAwWjBSMQswCQYDVQQGEwJTQTETMBEGA1UECwwKMzk5OTk5OTk5OTEOMAwGA1UECgwFYWdpbGUxHjAcBgNVBAMMFVRTVFpBVENBLUNvZGUtU2lnbmluZzBWMBAGByqGSM49AgEGBSuBBAAKA0IABLY+xYbQhrDv5fXd+0BRrxUgkT0TJvw7dbgKtpNL+aUOUB7cCMhtoZhJ61zqgJ1xpdbIokqz6olc7U3l9+duRFujgbIwga8wDAYDVR0TAQH/BAIwADCBngYDVR0RBIGWMIGTpIGQMIGNMT4wPAYDVQQEDDUxLVBvc05hbWV8Mi1HNHwzLWY1MjMzZDRlLTEwZDQtNGE4Yi05MjNlLTU5ZWNlNGFkNjM1NTEfMB0GCgmSJomT8ixkAQEMDzMwMDA3NTU4ODcwMDAwMzENMAsGA1UEDAwEMTEwMDEOMAwGA1UEGgwFQW1tYW4xCzAJBgNVBA8MAklUMAoGCCqGSM49BAMCA0kAMEYCIQCDFNMDCCOHcyx3scEIaS4lr0uGyizXunAIlKWHqtEt4wIhAMuN61SiTBeolBGlhK2TX4iflFTyVui2ISlKWj5HTf/D')
-        
-        # Add Object with XAdES properties
-        ds_object = self.create_element(signature, 'ds:Object')
-        qualifying_props = self.create_element(ds_object, 'xades:QualifyingProperties', 
-                                            Target="signature")
-        signed_props = self.create_element(qualifying_props, 'xades:SignedProperties', 
-                                         Id="xadesSignedProperties")
-        sig_signed_props = self.create_element(signed_props, 'xades:SignedSignatureProperties')
-        
-        # Add SigningTime and SigningCertificate
-        self.create_element(sig_signed_props, 'xades:SigningTime', '2024-07-01T13:25:15')
-        signing_cert = self.create_element(sig_signed_props, 'xades:SigningCertificate')
-        cert = self.create_element(signing_cert, 'xades:Cert')
-        cert_digest = self.create_element(cert, 'xades:CertDigest')
-        self.create_element(cert_digest, 'ds:DigestMethod', 
-                          Algorithm="http://www.w3.org/2001/04/xmlenc#sha256")
-        self.create_element(cert_digest, 'ds:DigestValue', 
-                          'NGVkYjUzZjVlMDU4YzQ5NzA3ODUwMWQ3NzE2ODQyMTc0YTZlNjM4Y2JlNGE4MTM1MGUxZjhmMzU0OWIyMWRkNg==')
-        
-        issuer_serial = self.create_element(cert, 'xades:IssuerSerial')
-        self.create_element(issuer_serial, 'ds:X509IssuerName', 'CN=eInvoicing')
-        self.create_element(issuer_serial, 'ds:X509SerialNumber', '1705918255411')
     
     def add_document_references(self, root, invoice_data):
         """Add document references (ICV, PIH, QR)"""
@@ -471,56 +561,6 @@ class XMLService:
             price = self.create_element(line, 'cac:Price')
             self.create_element(price, 'cbc:PriceAmount', 
                               item['price'], currencyID="SAR")
-
-    def generate_ubl_xml(self, invoice_data):
-        """Generate UBL 2.1 compliant XML"""
-        try:
-            # Create root element with default namespace
-            namespace = self.namespaces['']
-            root = ET.Element(f"{{{namespace}}}Invoice")
-            
-            # Add main elements
-            self.create_element(root, 'cbc:ProfileID', 
-                            invoice_data.get('profileID', 'reporting:1.0'))
-            self.create_element(root, 'cbc:ID', invoice_data['invoiceNumber'])
-            self.create_element(root, 'cbc:UUID', 
-                            invoice_data.get('uuid', str(uuid.uuid4())))
-            self.create_element(root, 'cbc:IssueDate', invoice_data['issueDate'])
-            self.create_element(root, 'cbc:IssueTime', 
-                            invoice_data.get('issueTime', '00:00:00'))
-            self.create_element(root, 'cbc:InvoiceTypeCode', 
-                            invoice_data['invoiceTypeCode']['value'],
-                            name=invoice_data['invoiceTypeCode']['name'])
-            self.create_element(root, 'cbc:DocumentCurrencyCode', 'SAR')
-            self.create_element(root, 'cbc:TaxCurrencyCode', 'SAR')
-
-            # Add other elements
-            self._add_document_references(root, invoice_data)
-            self._add_supplier_party(root, invoice_data['supplier'])
-            self._add_customer_party(root, invoice_data['customer'])
-            
-            if 'delivery' in invoice_data:
-                self._add_delivery(root, invoice_data['delivery'])
-            
-            if 'paymentMeans' in invoice_data:
-                self._add_payment_means(root, invoice_data['paymentMeans'])
-            
-            self._add_tax_totals(root, invoice_data)
-            self._add_monetary_total(root, invoice_data['totals'])
-            self._add_invoice_lines(root, invoice_data['items'])
-
-            # Convert to string with proper XML declaration
-            xml_declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
-            xml_content = ET.tostring(root, encoding='UTF-8')
-            
-            # Combine XML declaration with content
-            final_xml = xml_declaration.encode('UTF-8') + xml_content
-            
-            return final_xml
-            
-        except Exception as e:
-            logger.error(f"Error generating XML: {str(e)}")
-            raise
     
     def _add_document_references(self, root, invoice_data):
         """Add document references (ICV, PIH, QR)"""

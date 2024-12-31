@@ -133,11 +133,11 @@ class ZATCAService:
         except Exception as e:
             raise Exception(f"Error signing invoice: {str(e)}")
 
-    def generate_qr_code(self, invoice_data):
+    def generate_qr_code(self, invoice_data, cert_info=None):
         """Generate QR code with required ZATCA fields"""
         try:
-            # Generate XML
-            xml_content = self.xml_service.generate_ubl_xml(invoice_data)
+            # Generate XML with certificate info
+            xml_content = self.xml_service.generate_ubl_xml(invoice_data, cert_info)
             
             # Make sure invoice number is available
             invoice_number = invoice_data.get('invoiceNumber', '')
@@ -152,9 +152,8 @@ class ZATCAService:
                 logger.error(f"Error saving XML: {str(e)}")
                 raise
             
-            # Generate hash and signature
+            # Generate hash using the signed XML content
             invoice_hash = self.generate_invoice_hash(xml_content)
-            signature = self.sign_invoice(invoice_hash)
             
             # Prepare QR data
             qr_data = {
@@ -165,7 +164,7 @@ class ZATCAService:
                 'total_amount': invoice_data['totals']['taxInclusiveAmount'],
                 'vat_amount': invoice_data['taxTotal'],
                 'invoice_hash': invoice_hash,
-                'signature': signature
+                'signature': cert_info.get('signature_value', '') if cert_info else ''
             }
             
             # Create QR string
@@ -199,11 +198,11 @@ class ZATCAService:
             logger.error(f"Error generating QR code: {str(e)}")
             raise Exception(f"Error generating QR code: {str(e)}")
 
-    def submit_to_zatca(self, invoice_data, invoice_type='B2B'):
+    def submit_to_zatca(self, invoice_data, invoice_type='B2B', cert_info=None):
         """Submit invoice to ZATCA"""
         try:
-            # Generate XML and hash
-            xml_content = self.xml_service.generate_ubl_xml(invoice_data)
+            # Generate XML with certificate info
+            xml_content = self.xml_service.generate_ubl_xml(invoice_data, cert_info)
             invoice_hash = self.generate_invoice_hash(xml_content)
             
             # Prepare payload
@@ -237,7 +236,7 @@ class ZATCAService:
                 invoice_data['invoiceNumber'], 
                 zatca_response
             )
-            print(f"ZATCA response saved to: {response_path}")
+            logger.info(f"ZATCA response saved to: {response_path}")
             
             return zatca_response
             
@@ -464,4 +463,53 @@ class ZATCAService:
             return self.xml_service.convert_zatca_json(invoice_data)
         except Exception as e:
             logger.error(f"Error converting ZATCA JSON: {str(e)}")
-            raise ValueError(f"Error converting invoice data: {str(e)}")    
+            raise ValueError(f"Error converting invoice data: {str(e)}")
+        
+    def prepare_certificate_info(self, invoice_data=None):
+        """Prepare certificate information for XML signing"""
+        try:
+            if not self.certificate or not self.private_key:
+                return None
+                
+            cert_info = {}
+            
+            # Get certificate data
+            cert_info['certificate'] = base64.b64encode(
+                self.certificate.public_bytes(serialization.Encoding.DER)
+            ).decode('utf-8')
+            
+            # Get certificate digest
+            cert_digest = hashlib.sha256()
+            cert_digest.update(self.certificate.public_bytes(serialization.Encoding.DER))
+            cert_info['cert_digest'] = base64.b64encode(cert_digest.digest()).decode('utf-8')
+            
+            # Get issuer info
+            issuer = self.certificate.issuer
+            issuer_cn = next(
+                (attr.value for attr in issuer if isinstance(attr, x509.NameAttribute) 
+                and attr.oid == NameOID.COMMON_NAME),
+                None
+            )
+            cert_info['issuer_name'] = issuer_cn or 'CN=Unknown'
+            cert_info['serial_number'] = str(self.certificate.serial_number)
+            
+            # If invoice data is provided, calculate signature
+            if invoice_data:
+                # Generate hash of invoice data
+                invoice_hash = hashlib.sha256()
+                invoice_hash.update(str(invoice_data).encode())
+                digest_value = invoice_hash.hexdigest()
+                cert_info['digest_value'] = digest_value
+                
+                # Sign the hash
+                signature = self.private_key.sign(
+                    invoice_hash.digest(),
+                    ec.ECDSA(hashes.SHA256())
+                )
+                cert_info['signature_value'] = base64.b64encode(signature).decode('utf-8')
+            
+            return cert_info
+            
+        except Exception as e:
+            logger.error(f"Error preparing certificate info: {str(e)}")
+            return None    
